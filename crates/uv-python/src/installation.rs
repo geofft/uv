@@ -14,7 +14,7 @@ use uv_pep440::{Prerelease, Version};
 use crate::discovery::{
     EnvironmentPreference, PythonRequest, find_best_python_installation, find_python_installation,
 };
-use crate::downloads::{DownloadResult, ManagedPythonDownload, PythonDownloadRequest, Reporter};
+use crate::downloads::{DownloadResult, ManagedPythonDownload, ManagedPythonDownloader, PythonDownloadRequest, Reporter};
 use crate::implementation::LenientImplementationName;
 use crate::managed::{ManagedPythonInstallation, ManagedPythonInstallations};
 use crate::platform::{Arch, Libc, Os};

@@ -10,7 +10,6 @@ use std::{env, io};
 
 use futures::TryStreamExt;
 use itertools::Itertools;
-use once_cell::sync::OnceCell;
 use owo_colors::OwoColorize;
 use reqwest_retry::{RetryError, RetryPolicy};
 use serde::Deserialize;
@@ -372,9 +371,9 @@ impl PythonDownloadRequest {
     fn iter_downloads<'a>(
         &'a self,
         downloader: &ManagedPythonDownloader,
-    ) -> Result<impl Iterator<Item = &'static ManagedPythonDownload> + use<'a>, Error> {
-        Ok(downloader.iter_all()?
-            .filter(move |download| self.satisfied_by_download(download)))
+    ) -> impl Iterator<Item = &'static ManagedPythonDownload> + use<'a> {
+        downloader.iter_all()
+            .filter(move |download| self.satisfied_by_download(download))
     }
 
     /// Whether this request is satisfied by an installation key.
