@@ -125,8 +125,9 @@ impl PythonInstallation {
             && python_downloads.is_automatic()
             && client_builder.connectivity.is_online();
 
+        let downloader = ManagedPythonDownloader::new(python_downloads_json_url).await?;
         let download = download_request.clone().fill().map(|request| {
-            ManagedPythonDownload::from_request(&request, python_downloads_json_url)
+            downloader.from_request(&request)
         });
 
         // Regardless of whether downloads are enabled, we want to determine if the download is

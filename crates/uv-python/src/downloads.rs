@@ -369,11 +369,11 @@ impl PythonDownloadRequest {
     }
 
     /// Iterate over all [`PythonDownload`]'s that match this request.
-    pub fn iter_downloads<'a>(
+    fn iter_downloads<'a>(
         &'a self,
-        python_downloads_json_url: Option<&'a str>,
+        downloader: &ManagedPythonDownloader,
     ) -> Result<impl Iterator<Item = &'static ManagedPythonDownload> + use<'a>, Error> {
-        Ok(ManagedPythonDownload::iter_all(python_downloads_json_url)?
+        Ok(downloader.iter_all()?
             .filter(move |download| self.satisfied_by_download(download)))
     }
 
@@ -595,8 +595,10 @@ impl FromStr for PythonDownloadRequest {
 }
 
 const BUILTIN_PYTHON_DOWNLOADS_JSON: &str = include_str!("download-metadata-minified.json");
-static PYTHON_DOWNLOADS: OnceCell<std::borrow::Cow<'static, [ManagedPythonDownload]>> =
-    OnceCell::new();
+
+pub struct ManagedPythonDownloader {
+    downloads: Vec<ManagedPythonDownload>,
+}
 
 #[derive(Debug, Deserialize, Clone)]
 struct JsonPythonDownload {
@@ -625,16 +627,16 @@ pub enum DownloadResult {
     Fetched(PathBuf),
 }
 
-impl ManagedPythonDownload {
+impl ManagedPythonDownloader {
     /// Return the first [`ManagedPythonDownload`] matching a request, if any.
     ///
     /// If there is no stable version matching the request, a compatible pre-release version will
     /// be searched for — even if a pre-release was not explicitly requested.
     pub fn from_request(
+        &self,
         request: &PythonDownloadRequest,
-        python_downloads_json_url: Option<&str>,
     ) -> Result<&'static ManagedPythonDownload, Error> {
-        if let Some(download) = request.iter_downloads(python_downloads_json_url)?.next() {
+        if let Some(download) = request.iter_downloads(self).next() {
             return Ok(download);
         }
 
@@ -642,7 +644,7 @@ impl ManagedPythonDownload {
             if let Some(download) = request
                 .clone()
                 .with_prereleases(true)
-                .iter_downloads(python_downloads_json_url)?
+                .iter_downloads(self)
                 .next()
             {
                 return Ok(download);
@@ -651,16 +653,10 @@ impl ManagedPythonDownload {
 
         Err(Error::NoDownloadFound(request.clone()))
     }
-    //noinspection RsUnresolvedPath - RustRover can't see through the `include!`
 
-    /// Iterate over all [`ManagedPythonDownload`]s.
-    ///
-    /// Note: The list is generated on the first call to this function.
-    /// so `python_downloads_json_url` is only used in the first call to this function.
-    pub fn iter_all(
+    pub async fn new(
         python_downloads_json_url: Option<&str>,
-    ) -> Result<impl Iterator<Item = &'static ManagedPythonDownload>, Error> {
-        let downloads = PYTHON_DOWNLOADS.get_or_try_init(|| {
+    ) -> Result<Self, Error> {
             let json_downloads: HashMap<String, JsonPythonDownload> = if let Some(json_source) =
                 python_downloads_json_url
             {
@@ -688,12 +684,16 @@ impl ManagedPythonDownload {
             };
 
             let result = parse_json_downloads(json_downloads);
-            Ok(Cow::Owned(result))
-        })?;
-
-        Ok(downloads.iter())
+            Ok(Self(result))
     }
 
+    /// Iterate over all [`ManagedPythonDownload`]s.
+    fn iter_all(&self) -> impl Iterator<Item = &'static ManagedPythonDownload> {
+        self.downloads.iter()
+    }
+}
+
+impl ManagedPythonDownload {
     pub fn url(&self) -> &'static str {
         self.url
     }
