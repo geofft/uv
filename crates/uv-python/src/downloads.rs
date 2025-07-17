@@ -370,8 +370,8 @@ impl PythonDownloadRequest {
     /// Iterate over all [`PythonDownload`]'s that match this request.
     fn iter_downloads<'a>(
         &'a self,
-        downloader: &ManagedPythonDownloader,
-    ) -> impl Iterator<Item = &'static ManagedPythonDownload> + use<'a> {
+        downloader: &'a ManagedPythonDownloader,
+    ) -> impl Iterator<Item = &'a ManagedPythonDownload> {
         downloader.iter_all()
             .filter(move |download| self.satisfied_by_download(download))
     }
@@ -683,7 +683,7 @@ impl ManagedPythonDownloader {
             };
 
             let result = parse_json_downloads(json_downloads);
-            Ok(Self(result))
+            Ok(Self { downloads: result }))
     }
 
     /// Iterate over all [`ManagedPythonDownload`]s.
